@@ -1,0 +1,930 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Collage Maker</title>
+<style>
+  :root {
+    --bg: #f2f2f7; --card: #ffffff; --text: #000000; --text2: #3c3c4399; --text3: #3c3c434d;
+    --sep: #c6c6c8; --blue: #007aff; --green: #34c759; --fill: #7676801f; --fill2: #78788033;
+    --seg-ind: #ffffff; --track: #7878805c; --red: #ff3b30;
+    --ease: cubic-bezier(.32, .72, 0, 1); --spring: cubic-bezier(.34, 1.36, .64, 1);
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #000000; --card: #1c1c1e; --text: #ffffff; --text2: #ebebf599; --text3: #ebebf54d;
+      --sep: #38383a; --blue: #0a84ff; --green: #30d158; --fill: #7676803d; --fill2: #7878805c;
+      --seg-ind: #636366; --track: #7878805c; --red: #ff453a; }
+  }
+  :root[data-theme="dark"] { --bg: #000000; --card: #1c1c1e; --text: #ffffff; --text2: #ebebf599; --text3: #ebebf54d;
+      --sep: #38383a; --blue: #0a84ff; --green: #30d158; --fill: #7676803d; --fill2: #7878805c;
+      --seg-ind: #636366; --track: #7878805c; --red: #ff453a; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); letter-spacing: -0.01em;
+    font: 17px/1.3 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; }
+
+  /* ---------- Header ---------- */
+  header { max-width: 1180px; margin: 0 auto; padding: max(18px, env(safe-area-inset-top)) 16px 4px; }
+  .eyebrow { color: var(--text2); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .02em; }
+  h1 { font-size: 34px; font-weight: 700; letter-spacing: -0.025em; margin: 2px 0 12px; line-height: 1.1;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif; }
+  h1 span { display: inline-block; animation: titleIn .5s var(--ease); }
+  @keyframes titleIn { from { opacity: 0; transform: translateY(6px); filter: blur(4px); } }
+  .modeSeg { max-width: 420px; }
+
+  main { display: grid; grid-template-columns: 370px 1fr; gap: 24px; max-width: 1180px; margin: 0 auto;
+    padding: 12px 16px calc(40px + env(safe-area-inset-bottom)); align-items: start; }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; gap: 8px; } }
+
+  /* ---------- Inset grouped lists ---------- */
+  .settings { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+  .panelSet { display: flex; flex-direction: column; gap: 22px; animation: fadeUp .45s var(--ease); }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } }
+  .ghead { font-size: 13px; color: var(--text2); text-transform: uppercase; margin: 0 16px 7px; letter-spacing: 0; }
+  .gfoot { font-size: 13px; color: var(--text2); margin: 7px 16px 0; line-height: 1.35; }
+  .card { background: var(--card); border-radius: 12px; overflow: hidden; }
+  .cell { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    min-height: 46px; padding: 9px 16px; }
+  .cell + .cell::before, .reveal + .cell::before, .cell + .reveal > div > .cell:first-child::before {
+    content: ""; position: absolute; top: 0; left: 16px; right: 0; height: .5px; background: var(--sep); }
+  .cell.col { flex-direction: column; align-items: stretch; gap: 8px; padding-top: 11px; padding-bottom: 11px; }
+  .cell .lbl { display: flex; justify-content: space-between; align-items: baseline; }
+  .val { color: var(--text2); font-variant-numeric: tabular-nums; }
+  .linkcell { color: var(--blue); cursor: pointer; background: none; border: 0; width: 100%; text-align: left; }
+  .linkcell:active { background: var(--fill); }
+
+  /* Smooth expand/collapse */
+  .reveal { display: grid; grid-template-rows: 1fr; opacity: 1;
+    transition: grid-template-rows .4s var(--ease), opacity .3s var(--ease); }
+  .reveal > div { overflow: hidden; min-height: 0; }
+  .reveal.closed { grid-template-rows: 0fr; opacity: 0; }
+
+  /* ---------- iOS switch ---------- */
+  .switch { position: relative; width: 51px; height: 31px; flex: none; cursor: pointer; }
+  .switch input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+  .switch span { position: absolute; inset: 0; border-radius: 16px; background: var(--fill2);
+    transition: background .3s var(--ease); pointer-events: none; }
+  .switch span::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px;
+    border-radius: 50%; background: #fff; box-shadow: 0 3px 8px rgba(0,0,0,.15), 0 3px 1px rgba(0,0,0,.06);
+    transition: transform .35s var(--spring), width .2s var(--ease); }
+  .switch input:checked + span { background: var(--green); }
+  .switch input:checked + span::after { transform: translateX(20px); }
+  .switch:active span::after { width: 33px; }
+  .switch input:checked:active + span::after { transform: translateX(14px); }
+
+  /* ---------- iOS slider ---------- */
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 28px; margin: 0;
+    background: transparent; cursor: pointer; --p: 50%; }
+  input[type=range]:focus { outline: none; }
+  input[type=range]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px;
+    background: linear-gradient(to right, var(--blue) var(--p), var(--track) var(--p)); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 28px; height: 28px; margin-top: -12px;
+    border-radius: 50%; background: #fff; border: 0;
+    box-shadow: 0 .5px 4px rgba(0,0,0,.12), 0 6px 13px rgba(0,0,0,.12), 0 0 0 .5px rgba(0,0,0,.04);
+    transition: transform .25s var(--spring); }
+  input[type=range]:active::-webkit-slider-thumb { transform: scale(1.12); }
+  input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--track); }
+  input[type=range]::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--blue); }
+  input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 50%; background: #fff; border: 0;
+    box-shadow: 0 .5px 4px rgba(0,0,0,.12), 0 6px 13px rgba(0,0,0,.12); }
+  .sliderRow { display: flex; align-items: center; gap: 10px; color: var(--text3); font-size: 13px; }
+
+  /* ---------- Segmented control ---------- */
+  .seg { position: relative; display: flex; background: var(--fill); border-radius: 9px; padding: 2px; width: 100%;
+    user-select: none; -webkit-user-select: none; }
+  .seg button { position: relative; z-index: 1; flex: 1; border: 0; background: none; padding: 6px 4px;
+    font-size: 13px; font-weight: 500; cursor: pointer; border-radius: 7px; white-space: nowrap;
+    transition: transform .2s var(--ease); }
+  .seg button:active { transform: scale(.95); }
+  .seg button.on { font-weight: 600; }
+  .seg button + button::before { content: ""; position: absolute; left: 0; top: 25%; height: 50%; width: 1px;
+    background: var(--fill2); transition: opacity .2s; }
+  .seg button.on::before, .seg button.on + button::before { opacity: 0; }
+  .seg-ind { position: absolute; top: 2px; bottom: 2px; left: 2px; border-radius: 7px; background: var(--seg-ind);
+    box-shadow: 0 3px 8px rgba(0,0,0,.12), 0 3px 1px rgba(0,0,0,.04), 0 0 0 .5px rgba(0,0,0,.04);
+    transition: transform .4s var(--ease), width .4s var(--ease); }
+  .seg.big button { font-size: 15px; padding: 8px 4px; }
+
+  /* ---------- Stepper ---------- */
+  .stepper { display: flex; background: var(--fill); border-radius: 9px; overflow: hidden; flex: none; }
+  .stepper button { border: 0; background: none; width: 47px; height: 32px; font-size: 22px; line-height: 1;
+    cursor: pointer; transition: background .15s; }
+  .stepper button:active { background: var(--fill2); }
+  .stepper button:disabled { color: var(--text3); }
+  .stepper i { width: 1px; background: var(--fill2); margin: 7px 0; }
+  .bigval { font-variant-numeric: tabular-nums; display: inline-block; min-width: 1.2em; }
+  .bigval.tick { animation: tick .35s var(--spring); }
+  @keyframes tick { 40% { transform: scale(1.35); color: var(--blue); } }
+
+  /* ---------- Colour swatches ---------- */
+  .swatches { display: flex; gap: 14px; align-items: center; }
+  .sw { width: 30px; height: 30px; border-radius: 50%; border: 0; cursor: pointer; position: relative; padding: 0;
+    box-shadow: inset 0 0 0 .5px rgba(0,0,0,.2); transition: transform .3s var(--spring); }
+  .sw::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; border: 2.5px solid var(--blue);
+    opacity: 0; transform: scale(.8); transition: all .3s var(--spring); }
+  .sw.on::after { opacity: 1; transform: scale(1); }
+  .sw:active { transform: scale(.9); }
+  .sw.custom { background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red); overflow: visible; }
+  .sw.custom input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; border: 0; padding: 0; }
+
+  /* ---------- Photos ---------- */
+  .drop { margin: 12px; border: 1.5px dashed var(--fill2); border-radius: 12px; padding: 18px 12px; text-align: center;
+    cursor: pointer; transition: all .3s var(--ease); background: transparent; width: calc(100% - 24px); display: block; }
+  .drop .plus { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 50%;
+    background: var(--blue); color: #fff; font-size: 26px; font-weight: 300; margin-bottom: 6px;
+    transition: transform .4s var(--spring); }
+  .drop:hover .plus { transform: rotate(90deg); }
+  .drop:active { transform: scale(.98); }
+  .drop.over { border-color: var(--blue); background: color-mix(in srgb, var(--blue) 8%, transparent); }
+  .drop .t { font-weight: 600; font-size: 15px; display: block; }
+  .drop .s { color: var(--text2); font-size: 13px; }
+  .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; padding: 0 12px 12px; }
+  .thumbs:empty { display: none; }
+  .thumb { position: relative; border-radius: 10px; overflow: hidden; background: var(--fill); aspect-ratio: 1;
+    transition: transform .3s var(--spring), box-shadow .3s; }
+  .thumb.new { animation: popIn .5s var(--spring) both; }
+  @keyframes popIn { from { opacity: 0; transform: scale(.6); } }
+  .thumb.hero { box-shadow: 0 0 0 3px var(--blue); }
+  .thumb img { width: 100%; height: 100%; object-fit: contain; display: block; cursor: pointer; }
+  .thumb .n { position: absolute; top: 5px; left: 5px; background: rgba(0,0,0,.45); color: #fff; font-size: 11px; font-weight: 600;
+    border-radius: 10px; padding: 1px 7px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+  .thumb .cut { position: absolute; top: 5px; right: 5px; background: rgba(0,0,0,.45); color: #fff; font-size: 11px;
+    border-radius: 10px; padding: 1px 6px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+  .thumb .bar { position: absolute; left: 4px; right: 4px; bottom: 4px; display: flex; justify-content: space-between;
+    background: rgba(30,30,30,.5); border-radius: 9px; backdrop-filter: blur(14px) saturate(1.6);
+    -webkit-backdrop-filter: blur(14px) saturate(1.6); }
+  .thumb .bar button { flex: 1; background: none; border: 0; color: #fff; cursor: pointer; padding: 4px 0; font-size: 12px;
+    transition: transform .2s var(--spring); }
+  .thumb .bar button:active { transform: scale(.8); }
+  .thumb .bar button.on { color: #ffd60a; }
+
+  /* ---------- Preview ---------- */
+  .preview { position: sticky; top: 16px; display: flex; flex-direction: column; align-items: center; gap: 14px; min-width: 0; }
+  @media (max-width: 860px) { .preview { position: static; order: -1; } }
+  .stage { width: 100%; display: flex; align-items: center; justify-content: center; }
+  .canvasWrap { position: relative; display: inline-block; max-width: 100%; line-height: 0; }
+  canvas#out { max-width: 100%; max-height: 66vh; border-radius: 6px; display: block;
+    box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 12px 40px rgba(0,0,0,.18); }
+  canvas#out.pop { animation: canvasPop .55s var(--ease); }
+  @keyframes canvasPop { from { opacity: .35; transform: scale(.975); filter: blur(6px); } }
+  .splits { position: absolute; inset: 0; pointer-events: none; }
+  .splits .ln { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1.5px dashed rgba(255,255,255,.9);
+    filter: drop-shadow(0 0 2px rgba(0,0,0,.6)); animation: lineIn .5s var(--ease) both; }
+  @keyframes lineIn { from { transform: scaleY(0); } }
+  .splits .num { position: absolute; top: 10px; transform: translateX(-50%); background: rgba(0,0,0,.45); color: #fff;
+    font: 600 12px/1 -apple-system, system-ui, sans-serif; padding: 5px 9px; border-radius: 20px;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+  .empty { text-align: center; color: var(--text2); padding: 40px 10px; min-height: 320px; display: flex; flex-direction: column; justify-content: center; }
+  .empty .icon { width: 72px; height: 72px; border-radius: 18px; margin: 0 auto 14px; display: grid; place-items: center;
+    background: linear-gradient(135deg, #5ac8fa, #007aff 50%, #af52de); color: #fff; font-size: 34px;
+    box-shadow: 0 10px 30px rgba(0,122,255,.3); animation: float 4s ease-in-out infinite; }
+  @keyframes float { 50% { transform: translateY(-6px); } }
+  .empty b { display: block; color: var(--text); font-size: 20px; margin-bottom: 4px; }
+  .meta { color: var(--text2); font-size: 13px; text-align: center; min-height: 1.3em; }
+  .actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .btn { border: 0; border-radius: 14px; padding: 14px 26px; font-size: 17px; font-weight: 600; cursor: pointer;
+    background: var(--fill); color: var(--blue); transition: transform .25s var(--spring), opacity .2s; }
+  .btn.primary { background: var(--blue); color: #fff; }
+  .btn:active { transform: scale(.96); opacity: .85; }
+  .btn:disabled { opacity: .35; pointer-events: none; }
+
+  /* Swipe preview (phone) */
+  .phoneWrap { display: flex; flex-direction: column; align-items: center; gap: 10px; animation: fadeUp .5s var(--ease); }
+  .phoneWrap .cap { font-size: 13px; color: var(--text2); }
+  .phone { width: 270px; border-radius: 44px; padding: 11px; background: #1c1c1e;
+    box-shadow: 0 0 0 1.5px #3a3a3c, 0 20px 50px rgba(0,0,0,.3); }
+  .screen { border-radius: 34px; overflow: hidden; background: #000; position: relative; padding: 38px 0 14px; }
+  .screen .igbar { position: absolute; top: 12px; left: 14px; right: 14px; display: flex; align-items: center; gap: 7px;
+    color: #fff; font-size: 11px; font-weight: 600; }
+  .screen .igbar i { width: 20px; height: 20px; border-radius: 50%; background: linear-gradient(45deg, #feda75, #d62976, #4f5bd5); }
+  .strip { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; }
+  .strip::-webkit-scrollbar { display: none; }
+  .strip img { flex: 0 0 100%; width: 100%; scroll-snap-align: start; display: block; }
+  .counter { position: absolute; top: 46px; right: 10px; background: rgba(0,0,0,.6); color: #fff; font-size: 11px;
+    padding: 3px 8px; border-radius: 12px; font-weight: 600; }
+  .dots { display: flex; justify-content: center; gap: 4px; margin-top: 10px; }
+  .dots span { width: 6px; height: 6px; border-radius: 50%; background: #ffffff55; transition: all .3s var(--ease); }
+  .dots span.on { background: #0a84ff; transform: scale(1.15); }
+
+  /* ---------- Crop sheet ---------- */
+  .modal { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0); backdrop-filter: blur(0); -webkit-backdrop-filter: blur(0);
+    transition: background .4s var(--ease), backdrop-filter .4s var(--ease), -webkit-backdrop-filter .4s var(--ease); padding: 16px; }
+  .modal.open { background: rgba(0,0,0,.55); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+  .sheet { background: #1c1c1e; color: #fff; border-radius: 22px; padding: 14px 16px 18px; display: flex; flex-direction: column;
+    align-items: center; gap: 14px; max-width: 100%; box-shadow: 0 30px 80px rgba(0,0,0,.5);
+    transform: translateY(40px) scale(.96); opacity: 0; transition: transform .5s var(--ease), opacity .35s var(--ease); }
+  .modal.open .sheet { transform: none; opacity: 1; }
+  .sheetHead { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+  .sheetHead b { font-size: 17px; }
+  .sheetHead button { background: none; border: 0; color: #0a84ff; font-size: 17px; cursor: pointer; padding: 4px; }
+  .sheetHead button.done { font-weight: 600; }
+  .cropStage { position: relative; touch-action: none; user-select: none; -webkit-user-select: none; }
+  .cropStage img { display: block; max-width: min(760px, calc(100vw - 64px)); max-height: 58vh; border-radius: 2px; }
+  .cropBox { position: absolute; border: 1px solid rgba(255,255,255,.9); box-shadow: 0 0 0 9999px rgba(0,0,0,.55);
+    cursor: move; touch-action: none; transition: box-shadow .3s; }
+  .cropBox::before, .cropBox::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .5;
+    background-image: linear-gradient(to right, transparent calc(33.33% - .5px), #fff calc(33.33% - .5px), #fff calc(33.33% + .5px), transparent calc(33.33% + .5px), transparent calc(66.66% - .5px), #fff calc(66.66% - .5px), #fff calc(66.66% + .5px), transparent calc(66.66% + .5px)); }
+  .cropBox::after { background-image: linear-gradient(to bottom, transparent calc(33.33% - .5px), #fff calc(33.33% - .5px), #fff calc(33.33% + .5px), transparent calc(33.33% + .5px), transparent calc(66.66% - .5px), #fff calc(66.66% - .5px), #fff calc(66.66% + .5px), transparent calc(66.66% + .5px)); }
+  .h { position: absolute; width: 30px; height: 30px; touch-action: none; }
+  .h::before { content: ""; position: absolute; width: 22px; height: 22px; border: 0 solid #fff; }
+  .h.tl { left: -6px; top: -6px; cursor: nwse-resize; } .h.tl::before { left: 3px; top: 3px; border-width: 3.5px 0 0 3.5px; }
+  .h.tr { right: -6px; top: -6px; cursor: nesw-resize; } .h.tr::before { right: 3px; top: 3px; border-width: 3.5px 3.5px 0 0; }
+  .h.bl { left: -6px; bottom: -6px; cursor: nesw-resize; } .h.bl::before { left: 3px; bottom: 3px; border-width: 0 0 3.5px 3.5px; }
+  .h.br { right: -6px; bottom: -6px; cursor: nwse-resize; } .h.br::before { right: 3px; bottom: 3px; border-width: 0 3.5px 3.5px 0; }
+  .cropRatios { display: flex; gap: 6px; overflow-x: auto; max-width: 100%; padding: 2px; scrollbar-width: none; }
+  .cropRatios::-webkit-scrollbar { display: none; }
+  .cropRatios button { flex: none; border: 0; background: #2c2c2e; color: #fff; border-radius: 16px; padding: 7px 13px;
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: all .3s var(--spring); }
+  .cropRatios button.on { background: #fff; color: #000; transform: scale(1.05); }
+  .resetBtn { background: none; border: 0; color: #ffd60a; font-size: 15px; cursor: pointer; }
+
+  .saveSheet { width: min(560px, 100%); max-height: calc(100vh - 32px); }
+  .saveHint { margin: 0; font-size: 14px; line-height: 1.45; color: #ebebf5cc; text-align: center; }
+  .saveGrid { width: 100%; overflow-y: auto; display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    -webkit-overflow-scrolling: touch; }
+  .saveGrid figure { margin: 0; animation: popIn .45s var(--spring) both; }
+  .saveGrid img { width: 100%; display: block; border-radius: 8px; -webkit-touch-callout: default; user-select: auto; }
+  .saveGrid figcaption { font-size: 11px; color: #ebebf599; margin-top: 4px; word-break: break-all; }
+  /* Toast */
+  .toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); z-index: 20;
+    transform: translate(-50%, 30px) scale(.9); opacity: 0; pointer-events: none;
+    background: rgba(40,40,42,.82); color: #fff; padding: 12px 20px; border-radius: 22px; font-size: 15px; font-weight: 500;
+    backdrop-filter: blur(20px) saturate(1.8); -webkit-backdrop-filter: blur(20px) saturate(1.8);
+    transition: all .5s var(--spring); box-shadow: 0 10px 30px rgba(0,0,0,.25); white-space: nowrap; }
+  .toast.show { transform: translate(-50%, 0) scale(1); opacity: 1; }
+
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="eyebrow">Instagram</div>
+  <h1><span id="title">Collage</span></h1>
+  <div class="seg big modeSeg" id="modeSeg"></div>
+</header>
+
+<main>
+  <section class="settings">
+    <!-- Photos (shared) -->
+    <div>
+      <div class="ghead">Photos</div>
+      <div class="card">
+        <button class="drop" id="drop">
+          <span class="plus">+</span>
+          <span class="t">Add Photos</span>
+          <span class="s">Tap to choose, or drag them in</span>
+        </button>
+        <input type="file" id="file" accept="image/*" multiple hidden>
+        <div class="thumbs" id="thumbs"></div>
+      </div>
+      <div class="gfoot" id="photoHint"></div>
+    </div>
+
+    <!-- Collage settings -->
+    <div class="panelSet" id="collagePanel">
+      <div>
+        <div class="ghead">Size</div>
+        <div class="card"><div class="cell col"><div class="seg" id="ratioSeg"></div></div></div>
+        <div class="gfoot" id="ratioFoot"></div>
+      </div>
+      <div>
+        <div class="ghead">Layout</div>
+        <div class="card">
+          <div class="cell col"><div class="seg" id="arrangeSeg"></div></div>
+          <div class="cell" style="padding:0"><button class="linkcell cell" id="nextLayout">Try Another Layout</button></div>
+          <div class="cell"><span>Gaps Between Photos</span>
+            <label class="switch"><input type="checkbox" id="gaps"><span></span></label></div>
+          <div class="reveal closed" id="gapReveal"><div>
+            <div class="cell col"><div class="lbl"><span>Gap Size</span><span class="val" id="gapVal"></span></div>
+              <input type="range" id="gap" min="2" max="80" value="16"></div>
+          </div></div>
+          <div class="cell col"><div class="lbl"><span>Outer Margin</span><span class="val" id="padVal"></span></div>
+            <input type="range" id="pad" min="0" max="200" value="40"></div>
+        </div>
+        <div class="gfoot">Layout is automatic and keeps your photo order. Gaps show the blurred background.</div>
+      </div>
+    </div>
+
+    <!-- Carousel settings -->
+    <div class="panelSet" id="carouselPanel" hidden>
+      <div>
+        <div class="ghead">Carousel</div>
+        <div class="card">
+          <div class="cell"><span>Slides <b class="bigval" id="slidesVal">3</b></span>
+            <div class="stepper"><button id="slMinus" aria-label="Fewer slides">−</button><i></i><button id="slPlus" aria-label="More slides">+</button></div></div>
+          <div class="cell col"><div class="lbl"><span>Slide Size</span></div><div class="seg" id="slideSeg"></div></div>
+          <div class="cell"><span>Fill Every Slide</span>
+            <label class="switch"><input type="checkbox" id="fill" checked><span></span></label></div>
+          <div class="reveal" id="posReveal"><div>
+            <div class="cell col"><div class="lbl"><span id="posLbl">Position</span><span class="val" id="posVal"></span></div>
+              <div class="sliderRow"><span id="posA">Top</span><input type="range" id="pos" min="0" max="100" value="50"><span id="posB">Bottom</span></div></div>
+          </div></div>
+        </div>
+        <div class="gfoot" id="carFoot">The photo marked ★ is cut into equal slides. Posted together as a carousel, swiping feels like moving across one continuous photo.</div>
+      </div>
+    </div>
+
+    <!-- Background (shared) -->
+    <div>
+      <div class="ghead">Background</div>
+      <div class="card">
+        <div class="cell col"><div class="seg" id="bgSeg"></div></div>
+        <div class="reveal" id="blurReveal"><div>
+          <div class="cell col"><div class="lbl"><span>Blur</span><span class="val" id="blurVal"></span></div>
+            <input type="range" id="blur" min="0" max="100" value="60"></div>
+          <div class="cell col"><div class="lbl"><span>Darken</span><span class="val" id="dimVal"></span></div>
+            <input type="range" id="dim" min="0" max="80" value="10"></div>
+        </div></div>
+        <div class="reveal closed" id="colorReveal"><div>
+          <div class="cell"><span>Colour</span>
+            <div class="swatches">
+              <button class="sw on" data-c="#ffffff" style="background:#fff" aria-label="White"></button>
+              <button class="sw" data-c="#000000" style="background:#000" aria-label="Black"></button>
+              <label class="sw custom" aria-label="Custom colour"><input type="color" id="bgColor" value="#ffffff"></label>
+            </div></div>
+        </div></div>
+      </div>
+      <div class="gfoot" id="bgFoot">Blur comes from the photo marked ★, just like Instagram Stories.</div>
+    </div>
+
+    <!-- Export (shared) -->
+    <div>
+      <div class="ghead">Export</div>
+      <div class="card">
+        <div class="cell col"><div class="lbl"><span>Width</span></div><div class="seg" id="widthSeg"></div></div>
+        <div class="cell col"><div class="lbl"><span>Format</span></div><div class="seg" id="formatSeg"></div></div>
+      </div>
+      <div class="gfoot">Instagram shows posts at about 1080 px wide. Bigger sizes are great for your archive.</div>
+    </div>
+  </section>
+
+  <section class="preview">
+    <div class="stage">
+      <div class="empty" id="empty"><div class="icon">▦</div><b>No Photos Yet</b>Add a few photos to start.</div>
+      <div class="canvasWrap" id="canvasWrap" hidden>
+        <canvas id="out"></canvas>
+        <div class="splits" id="splits"></div>
+      </div>
+    </div>
+    <div class="meta" id="meta"></div>
+    <div class="actions">
+      <button class="btn primary" id="download" disabled>Save</button>
+      <button class="btn" id="share" disabled hidden>Share</button>
+    </div>
+    <div class="phoneWrap" id="phoneWrap" hidden>
+      <div class="cap">Swipe to preview</div>
+      <div class="phone"><div class="screen">
+        <div class="igbar"><i></i>your_profile</div>
+        <div class="strip" id="strip"></div>
+        <div class="counter" id="counter">1/3</div>
+        <div class="dots" id="dots"></div>
+      </div></div>
+    </div>
+  </section>
+</main>
+
+<div class="modal" id="cropModal" hidden>
+  <div class="sheet">
+    <div class="sheetHead"><button id="cropCancel">Cancel</button><b id="cropTitle">Crop</b><button class="done" id="cropApply">Done</button></div>
+    <div class="cropStage" id="cropStage">
+      <img id="cropImg" alt="" draggable="false">
+      <div class="cropBox" id="cropBox">
+        <div class="h tl" data-c="tl"></div><div class="h tr" data-c="tr"></div>
+        <div class="h bl" data-c="bl"></div><div class="h br" data-c="br"></div>
+      </div>
+    </div>
+    <div class="cropRatios" id="cropRatios"></div>
+    <button class="resetBtn" id="cropReset">Reset (No Crop)</button>
+  </div>
+</div>
+<div class="modal" id="saveModal" hidden>
+  <div class="sheet saveSheet">
+    <div class="sheetHead"><span></span><b>Save <span id="saveCount"></span></b><button class="done" id="saveDone">Done</button></div>
+    <p class="saveHint"><b>On a phone:</b> press and hold each image, then tap <b>Save to Photos</b>.<br><b>On a computer:</b> right-click each image and choose <b>Save Image As…</b></p>
+    <div class="saveGrid" id="saveGrid"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const RATIOS = { '1:1': [1, 1], '4:5': [4, 5], '3:4': [3, 4], '1.91:1': [1.91, 1], '9:16': [9, 16] };
+  const RATIO_NAMES = { '1:1': 'Square post', '4:5': 'Portrait post', '3:4': 'Tall portrait post (new grid size)',
+    '1.91:1': 'Landscape post', '9:16': 'Story or Reel' };
+  const MAX_PIXELS = 16_000_000; // iPhone Safari's canvas limit is ~16.7 MP
+  const state = { photos: [], mode: 'collage', ratio: '4:5', hero: 0, layoutPick: 0, arrange: 'auto',
+    bgMode: 'blur', bgColor: '#ffffff', width: 2160, format: 'image/jpeg', slides: 3, slideRatio: '4:5' };
+  const canvas = $('out');
+
+  // ---------- Small UI helpers ----------
+  function seg(el, items, value, onChange) {
+    el.classList.add('seg');
+    el.innerHTML = '<div class="seg-ind"></div>' + items.map(([v, l]) => `<button data-v="${v}">${l}</button>`).join('');
+    const ind = el.firstChild; let cur = String(value);
+    const place = () => {
+      const b = el.querySelector(`button[data-v="${CSS.escape(cur)}"]`);
+      el.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+      if (!b || !b.offsetWidth) return;
+      ind.style.width = b.offsetWidth + 'px'; ind.style.transform = `translateX(${b.offsetLeft - 2}px)`;
+    };
+    el.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b || b.dataset.v === cur) return;
+      cur = b.dataset.v; place(); onChange(cur);
+    });
+    new ResizeObserver(place).observe(el); place();
+    return { get: () => cur, set: v => { cur = String(v); place(); } };
+  }
+  const reveal = (id, open) => $(id).classList.toggle('closed', !open);
+  function sliderFill(r) { r.style.setProperty('--p', ((r.value - r.min) / (r.max - r.min) * 100) + '%'); }
+  let toastT;
+  function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2200); }
+  function bump() { canvas.classList.remove('pop'); void canvas.offsetWidth; canvas.classList.add('pop'); }
+
+  // ---------- Controls ----------
+  seg($('modeSeg'), [['collage', 'Collage'], ['carousel', 'Carousel Split']], 'collage', v => {
+    state.mode = v;
+    $('collagePanel').hidden = v !== 'collage'; $('carouselPanel').hidden = v !== 'carousel';
+    const t = $('title'); t.textContent = v === 'collage' ? 'Collage' : 'Carousel Split';
+    t.style.animation = 'none'; void t.offsetWidth; t.style.animation = '';
+    updateHints(); renderThumbs(); render(true);
+  });
+  seg($('ratioSeg'), Object.keys(RATIOS).map(k => [k, k]), state.ratio, v => { state.ratio = v; state.layoutPick = 0; render(true); });
+  seg($('arrangeSeg'), [['auto', 'Best Fit'], ['rows', 'Rows'], ['cols', 'Columns']], 'auto', v => { state.arrange = v; state.layoutPick = 0; render(true); });
+  seg($('slideSeg'), [['1:1', '1:1'], ['4:5', '4:5'], ['3:4', '3:4']], state.slideRatio, v => { state.slideRatio = v; render(true); });
+  seg($('bgSeg'), [['blur', 'Blurred Photo'], ['color', 'Solid Colour']], 'blur', v => {
+    state.bgMode = v; reveal('blurReveal', v === 'blur'); reveal('colorReveal', v === 'color'); updateHints(); renderThumbs(); render();
+  });
+  seg($('widthSeg'), [['1080', '1080'], ['1440', '1440'], ['2160', '2160'], ['3240', '3240']], 2160, v => { state.width = +v; render(); });
+  seg($('formatSeg'), [['image/jpeg', 'JPEG'], ['image/png', 'PNG']], 'image/jpeg', v => { state.format = v; render(); });
+
+  [['gap', 'gapVal'], ['pad', 'padVal'], ['blur', 'blurVal'], ['dim', 'dimVal'], ['pos', 'posVal']].forEach(([id, out]) => {
+    const r = $(id); const sync = () => { sliderFill(r); $(out).textContent = id === 'dim' ? r.value + '%' : r.value; };
+    r.addEventListener('input', () => { sync(); render(); }); sync();
+  });
+  $('gaps').addEventListener('change', e => { reveal('gapReveal', e.target.checked); state.layoutPick = 0; render(true); });
+  $('fill').addEventListener('change', () => render(true));
+  $('nextLayout').onclick = () => { state.layoutPick++; render(true); };
+  document.querySelectorAll('.sw[data-c]').forEach(b => b.onclick = () => setColor(b.dataset.c, b));
+  $('bgColor').addEventListener('input', e => setColor(e.target.value, e.target.parentElement));
+  function setColor(c, el) {
+    state.bgColor = c; document.querySelectorAll('.sw').forEach(s => s.classList.toggle('on', s === el));
+    if (el.classList.contains('custom')) el.style.background = c; render();
+  }
+  function setSlides(n) {
+    state.slides = Math.max(2, Math.min(10, n));
+    const v = $('slidesVal'); v.textContent = state.slides; v.classList.remove('tick'); void v.offsetWidth; v.classList.add('tick');
+    $('slMinus').disabled = state.slides <= 2; $('slPlus').disabled = state.slides >= 10; render(true);
+  }
+  $('slMinus').onclick = () => setSlides(state.slides - 1);
+  $('slPlus').onclick = () => setSlides(state.slides + 1);
+  $('slMinus').disabled = true;
+
+  function updateHints() {
+    const car = state.mode === 'carousel';
+    $('photoHint').textContent = car
+      ? 'Tap ★ on the photo to split. Tap a photo to crop it first.'
+      : 'Tap a photo to crop · ◀ ▶ reorder · ★ blurred background · ✕ remove';
+    $('bgFoot').textContent = state.bgMode === 'color' ? 'Shows wherever photos don’t cover the frame.'
+      : car ? 'The photo being split is also used for the blur.' : 'Blur comes from the photo marked ★, just like Instagram Stories.';
+    $('ratioFoot').textContent = RATIO_NAMES[state.ratio];
+    $('download').textContent = car ? `Save ${state.slides} Slides` : 'Save';
+  }
+
+  // ---------- Photos ----------
+  function addFiles(files) {
+    const list = [...files].filter(f => f.type.startsWith('image/') || /\.(heic|heif)$/i.test(f.name));
+    return Promise.all(list.map(f => new Promise(res => {
+      const url = URL.createObjectURL(f); const img = new Image();
+      img.onload = () => res({ img, url, thumb: url, name: f.name, crop: null, ar: img.naturalWidth / img.naturalHeight, isNew: true });
+      img.onerror = () => { URL.revokeObjectURL(url); res(null); };
+      img.src = url;
+    }))).then(items => {
+      const ok = items.filter(Boolean), bad = items.length - ok.length;
+      state.photos.push(...ok); state.layoutPick = 0;
+      if (bad) toast(`${bad} photo${bad > 1 ? 's' : ''} couldn’t be opened (try JPEG)`);
+      else if (ok.length) toast(`Added ${ok.length} photo${ok.length > 1 ? 's' : ''}`);
+      renderThumbs(); render(true);
+    });
+  }
+  const drop = $('drop');
+  drop.onclick = () => $('file').click();
+  $('file').onchange = e => { addFiles(e.target.files); e.target.value = ''; };
+  ['dragenter', 'dragover'].forEach(t => document.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(t => document.addEventListener(t, e => { e.preventDefault(); if (t === 'drop' || !e.relatedTarget) drop.classList.remove('over'); }));
+  document.addEventListener('drop', e => { if (e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files); });
+
+  function renderThumbs() {
+    const box = $('thumbs'); box.innerHTML = '';
+    state.photos.forEach((p, i) => {
+      const hero = i === state.hero && (state.mode === 'carousel' || state.bgMode === 'blur');
+      const d = document.createElement('div');
+      d.className = 'thumb' + (hero ? ' hero' : '') + (p.isNew ? ' new' : '');
+      d.style.animationDelay = p.isNew ? (i % 8) * 40 + 'ms' : '';
+      p.isNew = false;
+      d.innerHTML = `<img src="${p.thumb}" alt="Photo ${i + 1}" title="Tap to crop"><span class="n">${i + 1}</span>${p.crop ? '<span class="cut">✂</span>' : ''}
+        <div class="bar"><button data-a="l" aria-label="Move earlier">◀</button><button data-a="b" class="${hero ? 'on' : ''}" aria-label="${state.mode === 'carousel' ? 'Split this photo' : 'Use for background'}">★</button><button data-a="x" aria-label="Remove">✕</button><button data-a="r" aria-label="Move later">▶</button></div>`;
+      d.querySelector('img').onclick = () => openCrop(i);
+      d.querySelectorAll('button').forEach(b => b.onclick = () => {
+        const a = b.dataset.a, P = state.photos, heroP = P[state.hero];
+        if (a === 'b') { state.hero = i; renderThumbs(); render(state.mode === 'carousel'); return; }
+        if (a === 'x') {
+          d.style.transition = 'transform .25s, opacity .25s'; d.style.transform = 'scale(.6)'; d.style.opacity = '0';
+          setTimeout(() => { URL.revokeObjectURL(P[i].url); P.splice(i, 1); state.hero = Math.max(0, P.indexOf(heroP)); state.layoutPick = 0; renderThumbs(); render(true); }, 220);
+          return;
+        }
+        if (a === 'l' && i > 0) [P[i - 1], P[i]] = [P[i], P[i - 1]];
+        if (a === 'r' && i < P.length - 1) [P[i + 1], P[i]] = [P[i], P[i + 1]];
+        state.hero = Math.max(0, P.indexOf(heroP)); state.layoutPick = 0; renderThumbs(); render(true);
+      });
+      box.appendChild(d);
+    });
+  }
+
+  // ---------- Crop sheet ----------
+  const CROPS = [['Original', null], ['1:1', 1], ['4:5', 4 / 5], ['3:4', 3 / 4], ['2:3', 2 / 3], ['3:2', 3 / 2],
+    ['4:3', 4 / 3], ['16:9', 16 / 9], ['9:16', 9 / 16], ['2:1', 2], ['3:1', 3]];
+  const ce = { i: -1, box: null, lock: null, W: 0, H: 0 };
+  const cropImg = $('cropImg'), cropBox = $('cropBox');
+  CROPS.forEach(([label, r]) => {
+    const b = document.createElement('button'); b.textContent = label; b.dataset.r = r ?? '';
+    b.onclick = () => { setLock(r); markCrop(r); }; $('cropRatios').appendChild(b);
+  });
+  function markCrop(r) { document.querySelectorAll('#cropRatios button').forEach(b => b.classList.toggle('on', b.dataset.r === String(r ?? ''))); }
+  function setLock(r) {
+    ce.lock = r;
+    let w = ce.W, h = ce.H;
+    if (r) { h = w / r; if (h > ce.H) { h = ce.H; w = h * r; } }
+    ce.box = { x: (ce.W - w) / 2, y: (ce.H - h) / 2, w, h };
+    cropBox.style.transition = 'left .35s var(--ease), top .35s var(--ease), width .35s var(--ease), height .35s var(--ease)';
+    drawBox(); setTimeout(() => cropBox.style.transition = '', 360);
+  }
+  function drawBox() { const b = ce.box; Object.assign(cropBox.style, { left: b.x + 'px', top: b.y + 'px', width: b.w + 'px', height: b.h + 'px' }); }
+  function openCrop(i) {
+    const p = state.photos[i]; ce.i = i; $('cropTitle').textContent = `Crop Photo ${i + 1}`;
+    const m = $('cropModal'); m.hidden = false;
+    cropImg.onload = () => {
+      ce.W = cropImg.clientWidth; ce.H = cropImg.clientHeight;
+      const k = ce.W / p.img.naturalWidth;
+      ce.box = p.crop ? { x: p.crop.x * k, y: p.crop.y * k, w: p.crop.w * k, h: p.crop.h * k } : { x: 0, y: 0, w: ce.W, h: ce.H };
+      ce.lock = p.crop ? p.crop.lock : null; markCrop(ce.lock); drawBox();
+    };
+    cropImg.src = p.url;
+    if (cropImg.complete && cropImg.naturalWidth) cropImg.onload();
+    requestAnimationFrame(() => requestAnimationFrame(() => m.classList.add('open')));
+  }
+  function closeCrop() {
+    const m = $('cropModal'); m.classList.remove('open'); ce.i = -1;
+    setTimeout(() => { if (!m.classList.contains('open')) m.hidden = true; }, 400);
+  }
+  let drag = null;
+  cropBox.addEventListener('pointerdown', e => {
+    e.preventDefault(); cropBox.setPointerCapture(e.pointerId);
+    const corner = e.target.dataset.c || null, b = { ...ce.box };
+    drag = { corner, sx: e.clientX, sy: e.clientY, b,
+      ax: corner && corner.includes('l') ? b.x + b.w : b.x, ay: corner && corner.includes('t') ? b.y + b.h : b.y };
+  });
+  cropBox.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const { W, H } = ce;
+    if (!drag.corner) {
+      const b = drag.b;
+      ce.box.x = Math.min(W - b.w, Math.max(0, b.x + e.clientX - drag.sx));
+      ce.box.y = Math.min(H - b.h, Math.max(0, b.y + e.clientY - drag.sy));
+    } else {
+      const r = $('cropStage').getBoundingClientRect();
+      const left = drag.corner.includes('l'), top = drag.corner.includes('t');
+      const px = Math.min(W, Math.max(0, e.clientX - r.left)), py = Math.min(H, Math.max(0, e.clientY - r.top));
+      let w = Math.max(30, left ? drag.ax - px : px - drag.ax), h = Math.max(30, top ? drag.ay - py : py - drag.ay);
+      w = Math.min(w, left ? drag.ax : W - drag.ax); h = Math.min(h, top ? drag.ay : H - drag.ay);
+      if (ce.lock) { if (w / h > ce.lock) w = h * ce.lock; else h = w / ce.lock; }
+      ce.box = { x: left ? drag.ax - w : drag.ax, y: top ? drag.ay - h : drag.ay, w, h };
+    }
+    drawBox();
+  });
+  const endDrag = () => { drag = null; };
+  cropBox.addEventListener('pointerup', endDrag); cropBox.addEventListener('pointercancel', endDrag);
+  $('cropCancel').onclick = closeCrop;
+  $('cropReset').onclick = () => { applyCrop(null); closeCrop(); };
+  $('cropApply').onclick = () => {
+    const p = state.photos[ce.i], k = p.img.naturalWidth / ce.W, b = ce.box;
+    const full = b.w >= ce.W - 1 && b.h >= ce.H - 1;
+    applyCrop(full ? null : { x: b.x * k, y: b.y * k, w: b.w * k, h: b.h * k, lock: ce.lock }); closeCrop();
+  };
+  $('cropModal').addEventListener('click', e => { if (e.target === $('cropModal')) closeCrop(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('cropModal').hidden) closeCrop(); });
+  function applyCrop(c) {
+    const p = state.photos[ce.i]; p.crop = c;
+    const s = srcRect(p); p.ar = s.w / s.h;
+    if (c) {
+      const t = document.createElement('canvas'), k = 240 / Math.max(s.w, s.h);
+      t.width = Math.round(s.w * k); t.height = Math.round(s.h * k);
+      t.getContext('2d').drawImage(p.img, s.x, s.y, s.w, s.h, 0, 0, t.width, t.height);
+      p.thumb = t.toDataURL('image/jpeg', 0.85);
+    } else p.thumb = p.url;
+    state.layoutPick = 0; renderThumbs(); render(true);
+  }
+  const srcRect = p => p.crop || { x: 0, y: 0, w: p.img.naturalWidth, h: p.img.naturalHeight };
+
+  // ---------- Collage layout engine ----------
+  // Every photo keeps its exact shape. We try every way of splitting the photos
+  // (in order) into rows, and into columns, and rank by how much of the frame they fill.
+  function partitions(n) {
+    const out = [];
+    if (n <= 12) {
+      for (let mask = 0; mask < (1 << (n - 1)); mask++) {
+        const sizes = []; let c = 1;
+        for (let i = 0; i < n - 1; i++) { if (mask & (1 << i)) { sizes.push(c); c = 1; } else c++; }
+        sizes.push(c); out.push(sizes);
+      }
+    } else for (let k = 1; k <= n; k++) {
+      const sizes = []; let left = n;
+      for (let j = k; j > 0; j--) { const s = Math.round(left / j); sizes.push(s); left -= s; }
+      out.push(sizes);
+    }
+    return out;
+  }
+  function rowsLayout(ars, sizes, W, H, g) {
+    let idx = 0; const rows = [];
+    for (const m of sizes) { rows.push(ars.slice(idx, idx + m)); idx += m; }
+    const k = rows.length, S = rows.map(r => r.reduce((a, b) => a + b, 0));
+    let inv = 0, gapTerm = 0;
+    rows.forEach((r, j) => { inv += 1 / S[j]; gapTerm += g * (r.length - 1) / S[j]; });
+    const Wc = Math.min(W, (H - g * (k - 1) + gapTerm) / inv);
+    const hs = rows.map((r, j) => (Wc - g * (r.length - 1)) / S[j]);
+    if (hs.some(h => h <= 1)) return null;
+    const totalH = hs.reduce((a, b) => a + b, 0) + g * (k - 1);
+    const rects = []; let y = (H - totalH) / 2;
+    rows.forEach((r, j) => {
+      let x = (W - Wc) / 2;
+      r.forEach(a => { const w = a * hs[j]; rects.push({ x, y, w, h: hs[j] }); x += w + g; });
+      y += hs[j] + g;
+    });
+    const areas = rects.map(r => r.w * r.h), area = areas.reduce((a, b) => a + b, 0);
+    const balance = Math.min(...areas) / Math.max(...areas);
+    return { rects, score: area / (W * H) * (0.85 + 0.15 * Math.sqrt(balance)), sizes };
+  }
+  function computeLayouts(ars, W, H, g, mode) {
+    const all = [], parts = partitions(ars.length);
+    if (mode !== 'cols') parts.forEach(s => { const L = rowsLayout(ars, s, W, H, g); if (L) all.push({ ...L, kind: 'rows' }); });
+    if (mode !== 'rows' && ars.length > 1) parts.forEach(s => {
+      const L = rowsLayout(ars.map(a => 1 / a), s, H, W, g);
+      if (L) all.push({ kind: 'columns', score: L.score, sizes: s, rects: L.rects.map(r => ({ x: r.y, y: r.x, w: r.h, h: r.w })) });
+    });
+    all.sort((a, b) => b.score - a.score);
+    const seen = new Set();
+    return all.filter(L => { const k = L.rects.map(r => Math.round(r.x) + ',' + Math.round(r.y) + ',' + Math.round(r.w)).join('|');
+      if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 30);
+  }
+
+  // ---------- Story-style blur ----------
+  // Downscale-then-upscale blur: works in every browser and gives Instagram's soft look.
+  function drawCover(c, img, W, H) {
+    const s = Math.max(W / img.width, H / img.height), w = img.width * s, h = img.height * s;
+    c.drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
+  }
+  const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+  function blurred(photo, W, H, strength) {
+    const base = mk(W, H), b = base.getContext('2d');
+    b.save(); b.translate(W / 2, H / 2); b.scale(1.15, 1.15); b.translate(-W / 2, -H / 2);
+    drawCover(b, photo.img, W, H); b.restore();
+    if (strength <= 0) return base;
+    const factor = Math.max(1 / 60, 1 / (1 + strength * 0.6));
+    const tw = Math.max(4, Math.round(W * factor)), th = Math.max(4, Math.round(H * factor));
+    let cur = base, cw = W, ch = H;
+    while (cw / 2 > tw) {
+      const n = mk(Math.round(cw / 2), Math.round(ch / 2)), nc = n.getContext('2d');
+      nc.imageSmoothingQuality = 'high'; nc.drawImage(cur, 0, 0, n.width, n.height); cur = n; cw = n.width; ch = n.height;
+    }
+    const small = mk(tw, th), sc = small.getContext('2d'); sc.imageSmoothingQuality = 'high'; sc.drawImage(cur, 0, 0, tw, th);
+    cur = small; cw = tw; ch = th;
+    while (cw * 2 < W) {
+      const n = mk(cw * 2, ch * 2), nc = n.getContext('2d');
+      nc.imageSmoothingQuality = 'high'; nc.drawImage(cur, 0, 0, n.width, n.height); cur = n; cw = n.width; ch = n.height;
+    }
+    const out = mk(W, H), oc = out.getContext('2d'); oc.imageSmoothingQuality = 'high';
+    if ('filter' in oc) oc.filter = `blur(${Math.round(strength * W / 4000)}px)`;
+    const m = Math.round(strength * W / 2000);
+    oc.drawImage(cur, -m, -m, W + 2 * m, H + 2 * m);
+    return out;
+  }
+  function paintBackground(ctx, W, H, photo) {
+    if (state.bgMode === 'color' || !photo) { ctx.fillStyle = state.bgColor; ctx.fillRect(0, 0, W, H); return; }
+    // Blur at a capped resolution: blur is soft anyway, and it keeps big exports fast.
+    const s = Math.min(1, 1600 / Math.max(W, H)), bw = Math.round(W * s), bh = Math.round(H * s);
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(blurred(photo, bw, bh, +$('blur').value), 0, 0, W, H);
+    const dim = +$('dim').value / 100;
+    if (dim > 0) { ctx.fillStyle = `rgba(0,0,0,${dim})`; ctx.fillRect(0, 0, W, H); }
+  }
+  function clampSize(W, H) {
+    if (W * H <= MAX_PIXELS) return [W, H, false];
+    const s = Math.sqrt(MAX_PIXELS / (W * H)); return [Math.floor(W * s), Math.floor(H * s), true];
+  }
+
+  // ---------- Collage drawing ----------
+  function drawCollage(cv, wantW) {
+    const [rw, rh] = RATIOS[state.ratio];
+    let [W, H, clamped] = clampSize(wantW, Math.round(wantW * rh / rw));
+    cv.width = W; cv.height = H;
+    const ctx = cv.getContext('2d'), k = W / 1080;
+    const g = $('gaps').checked ? +$('gap').value * k : 0, pad = +$('pad').value * k;
+    paintBackground(ctx, W, H, state.photos[state.hero] || state.photos[0]);
+    const layouts = computeLayouts(state.photos.map(p => p.ar), W - 2 * pad, H - 2 * pad, g, state.arrange);
+    if (!layouts.length) return { error: 'Margin or gap is too large for this size.' };
+    const L = layouts[state.layoutPick % layouts.length];
+    ctx.imageSmoothingQuality = 'high';
+    let area = 0;
+    L.rects.forEach((q, i) => {
+      const p = state.photos[i], s = srcRect(p);
+      const x0 = Math.round(q.x + pad), y0 = Math.round(q.y + pad), x1 = Math.round(q.x + pad + q.w), y1 = Math.round(q.y + pad + q.h);
+      ctx.drawImage(p.img, s.x, s.y, s.w, s.h, x0, y0, x1 - x0, y1 - y0); area += q.w * q.h;
+    });
+    return { W, H, clamped, L, n: layouts.length, cover: Math.round(area / (W * H) * 100) };
+  }
+
+  // ---------- Carousel drawing ----------
+  // One long strip, N slides wide. Each slide is drawn on its own canvas by shifting
+  // the same strip left, so slide edges line up pixel-perfectly when swiping.
+  function carouselGeom(slideW) {
+    const [rw, rh] = RATIOS[state.slideRatio], N = state.slides;
+    let [sw, sh] = clampSize(slideW, Math.round(slideW * rh / rw));
+    const TW = sw * N, p = state.photos[state.hero] || state.photos[0], s = srcRect(p);
+    const fill = $('fill').checked, pos = +$('pos').value / 100;
+    const scale = fill ? Math.max(TW / s.w, sh / s.h) : Math.min(TW / s.w, sh / s.h);
+    const dw = s.w * scale, dh = s.h * scale;
+    const x = dw > TW ? (TW - dw) * pos : (TW - dw) / 2, y = dh > sh ? (sh - dh) * pos : (sh - dh) / 2;
+    return { sw, sh, TW, N, p, s, rect: { x, y, w: dw, h: dh }, covers: dw >= TW - 1 && dh >= sh - 1 };
+  }
+  function drawStrip(ctx, G, bg, offsetX) {
+    ctx.save(); ctx.translate(-offsetX, 0);
+    if (!G.covers) {
+      if (bg) ctx.drawImage(bg, 0, 0, G.TW, G.sh); else { ctx.fillStyle = state.bgColor; ctx.fillRect(0, 0, G.TW, G.sh); }
+    }
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(G.p.img, G.s.x, G.s.y, G.s.w, G.s.h, G.rect.x, G.rect.y, G.rect.w, G.rect.h);
+    ctx.restore();
+  }
+  function stripBackground(G) {
+    if (G.covers) return null;
+    const s = Math.min(1, 2400 / G.TW), c = mk(Math.round(G.TW * s), Math.round(G.sh * s));
+    paintBackground(c.getContext('2d'), c.width, c.height, state.bgMode === 'blur' ? G.p : null);
+    return c;
+  }
+
+  // ---------- Render ----------
+  let raf = 0, pendingPop = false, stripT = 0;
+  function render(pop) { if (pop) pendingPop = true; cancelAnimationFrame(raf); raf = requestAnimationFrame(draw); }
+
+  function draw() {
+    const has = state.photos.length > 0, car = state.mode === 'carousel';
+    updateHints();
+    $('empty').hidden = has; $('canvasWrap').hidden = !has;
+    $('download').disabled = !has; $('share').disabled = !has;
+    $('phoneWrap').hidden = !(has && car);
+    $('splits').innerHTML = '';
+    if (!has) { $('meta').textContent = ''; return; }
+    if (pendingPop) { bump(); pendingPop = false; }
+
+    if (!car) {
+      const r = drawCollage(canvas, Math.min(state.width, 1080));
+      if (r.error) { $('meta').textContent = r.error; return; }
+      const [rw, rh] = RATIOS[state.ratio], [EW, EH] = clampSize(state.width, Math.round(state.width * rh / rw));
+      $('meta').textContent = `${EW} × ${EH} px · layout ${(state.layoutPick % r.n) + 1} of ${r.n} · photos fill ${r.cover}%`;
+      return;
+    }
+
+    // Carousel preview: whole strip with split lines.
+    const G0 = carouselGeom(state.width), Gp = carouselGeom(Math.min(560, Math.floor(4800 / state.slides)));
+    const horizontal = Gp.rect.w > Gp.TW + 1, vertical = Gp.rect.h > Gp.sh + 1;
+    reveal('posReveal', $('fill').checked && (horizontal || vertical));
+    $('posLbl').textContent = horizontal ? 'Horizontal Position' : 'Vertical Position';
+    $('posA').textContent = horizontal ? 'Left' : 'Top'; $('posB').textContent = horizontal ? 'Right' : 'Bottom';
+    canvas.width = Gp.TW; canvas.height = Gp.sh;
+    drawStrip(canvas.getContext('2d'), Gp, stripBackground(Gp), 0);
+    for (let i = 1; i < Gp.N; i++) { const l = document.createElement('div'); l.className = 'ln'; l.style.left = (i / Gp.N * 100) + '%'; $('splits').appendChild(l); }
+    for (let i = 0; i < Gp.N; i++) { const t = document.createElement('div'); t.className = 'num'; t.style.left = ((i + .5) / Gp.N * 100) + '%'; t.textContent = i + 1; $('splits').appendChild(t); }
+    $('meta').textContent = `${G0.N} slides · each ${G0.sw} × ${G0.sh} px (${state.slideRatio})`;
+    clearTimeout(stripT); stripT = setTimeout(() => buildSwipe(Gp), 120);
+  }
+
+  // Phone swipe preview built from the preview strip.
+  function buildSwipe(G) {
+    const strip = $('strip'), keep = strip.scrollLeft / Math.max(1, strip.clientWidth);
+    strip.innerHTML = ''; $('dots').innerHTML = '';
+    for (let i = 0; i < G.N; i++) {
+      const c = mk(G.sw, G.sh); c.getContext('2d').drawImage(canvas, i * G.sw, 0, G.sw, G.sh, 0, 0, G.sw, G.sh);
+      const img = new Image(); img.src = c.toDataURL('image/jpeg', 0.85); img.alt = `Slide ${i + 1}`; strip.appendChild(img);
+      $('dots').appendChild(document.createElement('span'));
+    }
+    strip.scrollLeft = Math.round(Math.min(keep, G.N - 1)) * strip.clientWidth;
+    syncDots();
+  }
+  function syncDots() {
+    const strip = $('strip'), n = strip.children.length; if (!n) return;
+    const i = Math.round(strip.scrollLeft / Math.max(1, strip.clientWidth));
+    [...$('dots').children].forEach((d, j) => d.classList.toggle('on', j === i));
+    $('counter').textContent = `${i + 1}/${n}`;
+  }
+  $('strip').addEventListener('scroll', syncDots, { passive: true });
+
+  // ---------- Export ----------
+  const toBlob = cv => new Promise(res => cv.toBlob(res, state.format, 0.95));
+  const ext = () => state.format === 'image/png' ? 'png' : 'jpg';
+  function stamp() { const d = new Date(), p = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`; }
+  async function makeFiles() {
+    if (state.mode === 'collage') {
+      const cv = mk(1, 1); const r = drawCollage(cv, state.width); if (r.error) return [];
+      return [new File([await toBlob(cv)], `collage-${state.ratio.replace(':', 'x')}-${stamp()}.${ext()}`, { type: state.format })];
+    }
+    const G = carouselGeom(state.width), bg = stripBackground(G), files = [], t = stamp();
+    for (let i = 0; i < G.N; i++) {
+      const cv = mk(G.sw, G.sh); drawStrip(cv.getContext('2d'), G, bg, i * G.sw);
+      files.push(new File([await toBlob(cv)], `carousel-${t}-${String(i + 1).padStart(2, '0')}-of-${String(G.N).padStart(2, '0')}.${ext()}`, { type: state.format }));
+    }
+    return files;
+  }
+  // On the hosted page, saving goes through the viewer's download prompt.
+  let downloadsP = null;
+  const getDownloads = () => {
+    if (!downloadsP && window.claude && typeof window.claude.use === 'function')
+      downloadsP = window.claude.use('downloads').catch(() => null);
+    return downloadsP || Promise.resolve(null);
+  };
+  setTimeout(getDownloads, 0);
+  function saveFile(f) {
+    const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  }
+  async function busy(btn, fn) {
+    const label = btn.textContent; btn.disabled = true; btn.textContent = 'Preparing…';
+    try { await fn(); } finally { btn.disabled = false; btn.textContent = label; updateHints(); }
+  }
+  $('download').onclick = () => busy($('download'), async () => {
+    const files = await makeFiles();
+    if (!files.length) return;
+    const hosted = !!(window.claude && typeof window.claude.use === 'function');
+    const dl = hosted ? await getDownloads() : null;
+    if (!hosted) { // opened as a local file: normal browser downloads work
+      for (let i = 0; i < files.length; i++) { saveFile(files[i]); if (i < files.length - 1) await new Promise(r => setTimeout(r, 350)); }
+      toast(files.length > 1 ? `Saved ${files.length} slides` : 'Saved'); return;
+    }
+    if (!dl) { openSaveSheet(files); return; } // this viewer can't get the download prompt
+    let saved = 0;
+    for (let i = 0; i < files.length; i++) {
+      try { await dl.save({ filename: files[i].name, data: files[i] }); saved++; }
+      catch (e) {
+        const code = e && e.code;
+        if (code === 'rate_limited') { await new Promise(r => setTimeout(r, 1200)); i--; continue; }
+        if (code === 'declined') continue;
+        openSaveSheet(files.slice(i)); return;
+      }
+    }
+    if (saved) toast(saved > 1 ? `Saved ${saved} slides` : 'Saved');
+  });
+
+  // Fallback that always works: show the finished images so they can be
+  // long-pressed (phone) or right-clicked (computer) and saved.
+  const fileToDataURL = f => new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(f); });
+  async function openSaveSheet(files) {
+    const grid = $('saveGrid'); grid.innerHTML = '';
+    for (const f of files) {
+      const url = await fileToDataURL(f);
+      const fig = document.createElement('figure');
+      const img = new Image(); img.src = url; img.alt = f.name;
+      const cap = document.createElement('figcaption'); cap.textContent = f.name;
+      fig.append(img, cap); grid.appendChild(fig);
+    }
+    $('saveCount').textContent = files.length > 1 ? `${files.length} images` : '1 image';
+    const m = $('saveModal'); m.hidden = false;
+    requestAnimationFrame(() => requestAnimationFrame(() => m.classList.add('open')));
+  }
+  function closeSaveSheet() {
+    const m = $('saveModal'); m.classList.remove('open');
+    setTimeout(() => { if (!m.classList.contains('open')) { m.hidden = true; $('saveGrid').innerHTML = ''; } }, 400);
+  }
+  $('saveDone').onclick = closeSaveSheet;
+  $('saveModal').addEventListener('click', e => { if (e.target === $('saveModal')) closeSaveSheet(); });
+
+  if (navigator.canShare && navigator.canShare({ files: [new File([''], 'x.jpg', { type: 'image/jpeg' })] })) {
+    $('share').hidden = false;
+    $('share').onclick = () => busy($('share'), async () => {
+      const files = await makeFiles();
+      try { await navigator.share({ files }); } catch (e) { if (!e || e.name !== 'AbortError') openSaveSheet(files); }
+    });
+  }
+
+  updateHints(); render();
+})();
+</script>
+</body>
+</html>
